@@ -11,6 +11,7 @@ func (m *Manager) Listen() error {
 	router, err := events.NewEventRouter(m.rancherClient, 250, map[string]events.EventHandler{
 		"deploymentunit.sync": wrapHandler(m.HandleComputeSync),
 		"cluster.remove":      wrapHandler(m.handleClusterRemove),
+		"volume.remove":       wrapHandler(m.handleVolumeRemove),
 	})
 	if err != nil {
 		return err
