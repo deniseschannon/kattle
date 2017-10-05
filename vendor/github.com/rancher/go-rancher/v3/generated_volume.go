@@ -54,6 +54,12 @@ type Volume struct {
 	Uuid string `json:"uuid,omitempty" yaml:"uuid,omitempty"`
 
 	VolumeTemplateId string `json:"volumeTemplateId,omitempty" yaml:"volume_template_id,omitempty"`
+
+	PvConfig map[string]interface{} `json:"pvConfig,omitempty" yaml:"pv_config,omitempty"`
+
+	StorageClass string `json:"storageClass,omitempty" yaml:"storage_class,omitempty"`
+
+	Local bool `json:"local,omitempty" yaml:"local,omitempty"`
 }
 
 type VolumeCollection struct {
