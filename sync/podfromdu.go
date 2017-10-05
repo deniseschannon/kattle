@@ -510,6 +510,19 @@ func getVolumes(deploymentUnit client.DeploymentSyncRequest) []v1.Volume {
 	}
 
 	for _, container := range deploymentUnit.Containers {
+		for _, id := range container.DataVolumeMounts {
+			volumes = append(volumes, v1.Volume{
+				Name: utils.Hash(fmt.Sprint(id)),
+				VolumeSource: v1.VolumeSource{
+					PersistentVolumeClaim: &v1.PersistentVolumeClaimVolumeSource{
+						ClaimName: utils.Hash(fmt.Sprint(id)),
+					},
+				},
+			})
+		}
+	}
+
+	for _, container := range deploymentUnit.Containers {
 		for tmpfs := range container.Tmpfs {
 			volumes = append(volumes, v1.Volume{
 				Name: utils.Hash(tmpfs),
@@ -544,6 +557,13 @@ func getVolumeMounts(container client.Container) []v1.VolumeMount {
 		volumeMounts = append(volumeMounts, v1.VolumeMount{
 			Name:      utils.Hash(hostPath),
 			MountPath: containerPath,
+		})
+	}
+
+	for path, id := range container.DataVolumeMounts {
+		volumeMounts = append(volumeMounts, v1.VolumeMount{
+			Name:      utils.Hash(fmt.Sprint(id)),
+			MountPath: path,
 		})
 	}
 

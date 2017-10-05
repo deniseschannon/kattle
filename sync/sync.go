@@ -18,6 +18,10 @@ func Sync(clientset *kubernetes.Clientset, watchClient *watch.Client, deployment
 		return nil, err
 	}
 
+	if err := reconcileVolumes(clientset, watchClient, deploymentUnit); err != nil {
+		return nil, err
+	}
+
 	pod := podFromDeploymentUnit(deploymentUnit)
 	createdPod, err := reconcilePod(clientset, watchClient, pod, deploymentUnit, progressResponder)
 	if err != nil {
@@ -29,4 +33,8 @@ func Sync(clientset *kubernetes.Clientset, watchClient *watch.Client, deployment
 
 	response := responseFromPod(*createdPod)
 	return &response, nil
+}
+
+func RemoveVolume(clientset *kubernetes.Clientset, watchClient *watch.Client, volume client.Volume) error {
+	return deletePersistentVolume(clientset, volume)
 }
