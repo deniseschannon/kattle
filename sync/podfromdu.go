@@ -91,7 +91,7 @@ func getAnnotations(deploymentUnit client.DeploymentSyncRequest) map[string]stri
 	annotations := map[string]string{}
 
 	for k, v := range primary(deploymentUnit).Labels {
-		if strings.HasPrefix(k, labels.RancherLabelPrefix) && kubernetesLabelRegex.MatchString(k) {
+		if strings.HasPrefix(k, labels.RancherPrefix) && kubernetesLabelRegex.MatchString(k) {
 			annotations[k] = v
 		}
 	}
@@ -101,12 +101,12 @@ func getAnnotations(deploymentUnit client.DeploymentSyncRequest) map[string]stri
 
 func getLabels(deploymentUnit client.DeploymentSyncRequest) map[string]string {
 	podLabels := map[string]string{
-		labels.RevisionLabel:        deploymentUnit.Revision,
-		labels.DeploymentUUIDLabel:  deploymentUnit.DeploymentUnitUuid,
+		labels.Revision:             deploymentUnit.Revision,
+		labels.DeploymentUUID:       deploymentUnit.DeploymentUnitUuid,
 		labels.PrimaryContainerName: getContainerName(primary(deploymentUnit)),
 	}
 	for k, v := range primary(deploymentUnit).Labels {
-		if strings.HasPrefix(k, labels.RancherLabelPrefix) {
+		if strings.HasPrefix(k, labels.RancherPrefix) {
 			continue
 		}
 
@@ -195,7 +195,7 @@ func getPodSpec(deploymentUnit client.DeploymentSyncRequest) v1.PodSpec {
 }
 
 func getServiceAccountName(deploymentUnit client.DeploymentSyncRequest) string {
-	serviceAccount, ok := primary(deploymentUnit).Labels[labels.ServiceAccountLabel]
+	serviceAccount, ok := primary(deploymentUnit).Labels[labels.ServiceAccount]
 	if !ok {
 		return ""
 	}
@@ -261,65 +261,93 @@ func getHostAliases(container client.Container) []v1.HostAlias {
 
 func getAffinity(container client.Container, namespace string) *v1.Affinity {
 	// No affinity for global services
-	if val, ok := container.Labels[labels.GlobalLabel]; ok && val == "true" {
+	if val, ok := container.Labels[labels.Global]; ok && val == "true" {
 		return nil
 	}
 
 	anyAffinities := false
 
 	var matchExpressions []v1.NodeSelectorRequirement
-	hostAffinity, ok := container.Labels[labels.HostAffinityLabel]
+	hostAffinity, ok := container.Labels[labels.HostAffinity]
 	if ok {
-		selectors := getNodeSelectorExpressions(labels.Parse(hostAffinity), v1.NodeSelectorOpIn)
+		selectors := getNodeSelectorExpressions(labels.ParseMap(hostAffinity), v1.NodeSelectorOpIn)
 		matchExpressions = append(matchExpressions, selectors...)
 		anyAffinities = true
 	}
-	hostAntiAffinity, ok := container.Labels[labels.HostAntiAffinityLabel]
+	hostAntiAffinity, ok := container.Labels[labels.HostAntiAffinity]
 	if ok {
-		selectors := getNodeSelectorExpressions(labels.Parse(hostAntiAffinity), v1.NodeSelectorOpNotIn)
+		selectors := getNodeSelectorExpressions(labels.ParseMap(hostAntiAffinity), v1.NodeSelectorOpNotIn)
 		matchExpressions = append(matchExpressions, selectors...)
 		anyAffinities = true
 	}
 
 	var softMatchExpressions []v1.NodeSelectorRequirement
-	softHostAffinity, ok := container.Labels[labels.HostSoftAffinityLabel]
+	softHostAffinity, ok := container.Labels[labels.HostSoftAffinity]
 	if ok {
-		selectors := getNodeSelectorExpressions(labels.Parse(softHostAffinity), v1.NodeSelectorOpIn)
+		selectors := getNodeSelectorExpressions(labels.ParseMap(softHostAffinity), v1.NodeSelectorOpIn)
 		softMatchExpressions = append(softMatchExpressions, selectors...)
 		anyAffinities = true
 	}
-	softHostAntiAffinity, ok := container.Labels[labels.HostSoftAntiAffinityLabel]
+	softHostAntiAffinity, ok := container.Labels[labels.HostSoftAntiAffinity]
 	if ok {
-		selectors := getNodeSelectorExpressions(labels.Parse(softHostAntiAffinity), v1.NodeSelectorOpNotIn)
+		selectors := getNodeSelectorExpressions(labels.ParseMap(softHostAntiAffinity), v1.NodeSelectorOpNotIn)
 		softMatchExpressions = append(softMatchExpressions, selectors...)
 		anyAffinities = true
 	}
 
-	var podAffinityMatchExpressions []metav1.LabelSelectorRequirement
-	containerAffinity, ok := container.Labels[labels.ContainerAffinityLabel]
+	var podLabelAffinityMatchExpressions []metav1.LabelSelectorRequirement
+	containerLabelAffinity, ok := container.Labels[labels.ContainerLabelAffinity]
 	if ok {
-		selectors := getLabelSelectorExpressions(labels.Parse(containerAffinity), metav1.LabelSelectorOpIn)
-		podAffinityMatchExpressions = append(podAffinityMatchExpressions, selectors...)
+		selectors := getLabelSelectorExpressions(labels.ParseMap(containerLabelAffinity), metav1.LabelSelectorOpIn)
+		podLabelAffinityMatchExpressions = append(podLabelAffinityMatchExpressions, selectors...)
 		anyAffinities = true
 	}
-	containerAntiAffinity, ok := container.Labels[labels.ContainerAntiAffinityLabel]
+	containerLabelAntiAffinity, ok := container.Labels[labels.ContainerLabelAntiAffinity]
 	if ok {
-		selectors := getLabelSelectorExpressions(labels.Parse(containerAntiAffinity), metav1.LabelSelectorOpNotIn)
-		podAffinityMatchExpressions = append(podAffinityMatchExpressions, selectors...)
+		selectors := getLabelSelectorExpressions(labels.ParseMap(containerLabelAntiAffinity), metav1.LabelSelectorOpNotIn)
+		podLabelAffinityMatchExpressions = append(podLabelAffinityMatchExpressions, selectors...)
 		anyAffinities = true
 	}
 
-	var softPodAffinityMatchExpressions []metav1.LabelSelectorRequirement
-	softContainerAffinity, ok := container.Labels[labels.ContainerSoftAffinityLabel]
+	var softPodLabelAffinityMatchExpressions []metav1.LabelSelectorRequirement
+	softContainerLabelAffinity, ok := container.Labels[labels.ContainerLabelSoftAffinity]
 	if ok {
-		selectors := getLabelSelectorExpressions(labels.Parse(softContainerAffinity), metav1.LabelSelectorOpIn)
-		softPodAffinityMatchExpressions = append(softPodAffinityMatchExpressions, selectors...)
+		selectors := getLabelSelectorExpressions(labels.ParseMap(softContainerLabelAffinity), metav1.LabelSelectorOpIn)
+		softPodLabelAffinityMatchExpressions = append(softPodLabelAffinityMatchExpressions, selectors...)
 		anyAffinities = true
 	}
-	softContainerAntiAffinity, ok := container.Labels[labels.ContainerSoftAntiAffinityLabel]
+	softContainerLabelAntiAffinity, ok := container.Labels[labels.ContainerLabelSoftAntiAffinity]
 	if ok {
-		selectors := getLabelSelectorExpressions(labels.Parse(softContainerAntiAffinity), metav1.LabelSelectorOpNotIn)
-		softPodAffinityMatchExpressions = append(softPodAffinityMatchExpressions, selectors...)
+		selectors := getLabelSelectorExpressions(labels.ParseMap(softContainerLabelAntiAffinity), metav1.LabelSelectorOpNotIn)
+		softPodLabelAffinityMatchExpressions = append(softPodLabelAffinityMatchExpressions, selectors...)
+		anyAffinities = true
+	}
+
+	var podNameAffinityMatchExpressions []metav1.LabelSelectorRequirement
+	containerNameAffinity, ok := container.Labels[labels.ContainerNameAffinity]
+	if ok {
+		selectors := getNameSelectorExpressions(labels.ParseSlice(containerNameAffinity), metav1.LabelSelectorOpIn)
+		podNameAffinityMatchExpressions = append(podNameAffinityMatchExpressions, selectors...)
+		anyAffinities = true
+	}
+	containerNameAntiAffinity, ok := container.Labels[labels.ContainerNameAntiAffinity]
+	if ok {
+		selectors := getNameSelectorExpressions(labels.ParseSlice(containerNameAntiAffinity), metav1.LabelSelectorOpNotIn)
+		podNameAffinityMatchExpressions = append(podNameAffinityMatchExpressions, selectors...)
+		anyAffinities = true
+	}
+
+	var softPodNameAffinityMatchExpressions []metav1.LabelSelectorRequirement
+	softContainerNameAffinity, ok := container.Labels[labels.ContainerNameSoftAffinity]
+	if ok {
+		selectors := getNameSelectorExpressions(labels.ParseSlice(softContainerNameAffinity), metav1.LabelSelectorOpIn)
+		softPodNameAffinityMatchExpressions = append(softPodNameAffinityMatchExpressions, selectors...)
+		anyAffinities = true
+	}
+	softContainerNameAntiAffinity, ok := container.Labels[labels.ContainerNameSoftAntiAffinity]
+	if ok {
+		selectors := getNameSelectorExpressions(labels.ParseSlice(softContainerNameAntiAffinity), metav1.LabelSelectorOpNotIn)
+		softPodNameAffinityMatchExpressions = append(softPodNameAffinityMatchExpressions, selectors...)
 		anyAffinities = true
 	}
 
@@ -349,11 +377,11 @@ func getAffinity(container client.Container, namespace string) *v1.Affinity {
 			},
 		}
 	}
-	if len(podAffinityMatchExpressions) > 0 {
+	if len(podLabelAffinityMatchExpressions) > 0 {
 		affinity.PodAffinity.RequiredDuringSchedulingIgnoredDuringExecution = []v1.PodAffinityTerm{
 			{
 				LabelSelector: &metav1.LabelSelector{
-					MatchExpressions: podAffinityMatchExpressions,
+					MatchExpressions: podLabelAffinityMatchExpressions,
 				},
 				// Selector matches against labels from the namespace of the deployment unit only
 				Namespaces:  []string{namespace},
@@ -361,12 +389,38 @@ func getAffinity(container client.Container, namespace string) *v1.Affinity {
 			},
 		}
 	}
-	if len(softPodAffinityMatchExpressions) > 0 {
+	if len(softPodLabelAffinityMatchExpressions) > 0 {
 		affinity.PodAffinity.PreferredDuringSchedulingIgnoredDuringExecution = []v1.WeightedPodAffinityTerm{
 			{
 				PodAffinityTerm: v1.PodAffinityTerm{
 					LabelSelector: &metav1.LabelSelector{
-						MatchExpressions: softPodAffinityMatchExpressions,
+						MatchExpressions: softPodLabelAffinityMatchExpressions,
+					},
+					// Selector matches against labels from the namespace of the deployment unit only
+					Namespaces:  []string{namespace},
+					TopologyKey: hostnameTopologyKey,
+				},
+			},
+		}
+	}
+	if len(podNameAffinityMatchExpressions) > 0 {
+		affinity.PodAffinity.RequiredDuringSchedulingIgnoredDuringExecution = []v1.PodAffinityTerm{
+			{
+				LabelSelector: &metav1.LabelSelector{
+					MatchExpressions: podNameAffinityMatchExpressions,
+				},
+				// Selector matches against labels from the namespace of the deployment unit only
+				Namespaces:  []string{namespace},
+				TopologyKey: hostnameTopologyKey,
+			},
+		}
+	}
+	if len(softPodNameAffinityMatchExpressions) > 0 {
+		affinity.PodAffinity.PreferredDuringSchedulingIgnoredDuringExecution = []v1.WeightedPodAffinityTerm{
+			{
+				PodAffinityTerm: v1.PodAffinityTerm{
+					LabelSelector: &metav1.LabelSelector{
+						MatchExpressions: softPodNameAffinityMatchExpressions,
 					},
 					// Selector matches against labels from the namespace of the deployment unit only
 					Namespaces:  []string{namespace},
@@ -400,6 +454,20 @@ func getLabelSelectorExpressions(labelMap map[string]string, operator metav1.Lab
 			Operator: operator,
 			Values: []string{
 				utils.Hash(v),
+			},
+		})
+	}
+	return expressions
+}
+
+func getNameSelectorExpressions(names []string, operator metav1.LabelSelectorOperator) []metav1.LabelSelectorRequirement {
+	var expressions []metav1.LabelSelectorRequirement
+	for _, name := range names {
+		expressions = append(expressions, metav1.LabelSelectorRequirement{
+			Key:      utils.Hash(labels.ContainerName),
+			Operator: operator,
+			Values: []string{
+				utils.Hash(name),
 			},
 		})
 	}

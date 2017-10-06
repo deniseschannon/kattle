@@ -43,7 +43,7 @@ func shouldRemove(deploymentUnit client.DeploymentSyncRequest) bool {
 func reconcilePod(clientset *kubernetes.Clientset, watchClient *watch.Client, desiredPod v1.Pod, deploymentUnit client.DeploymentSyncRequest, progressResponder func(string)) (*v1.Pod, error) {
 	podName := desiredPod.Name
 	namespace := desiredPod.Namespace
-	desiredRevision := desiredPod.Labels[labels.RevisionLabel]
+	desiredRevision := desiredPod.Labels[labels.Revision]
 	for i := 0; i < 5; i++ {
 		if err := createPod(clientset, desiredPod); err == nil {
 			break
@@ -56,7 +56,7 @@ func reconcilePod(clientset *kubernetes.Clientset, watchClient *watch.Client, de
 			if existingPod.Status.Phase == v1.PodSucceeded || existingPod.Status.Phase == v1.PodFailed {
 				shouldDelete = true
 				log.Infof("Pod %s has is in phase %s", podName, existingPod.Status.Phase)
-			} else if existingPod.Labels[labels.RevisionLabel] != desiredRevision {
+			} else if existingPod.Labels[labels.Revision] != desiredRevision {
 				shouldDelete = true
 				log.Infof("Pod %s has old revision", podName)
 			}
