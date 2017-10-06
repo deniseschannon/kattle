@@ -38,7 +38,7 @@ func (c *Client) startPodWatch() chan struct{} {
 func podFilterAddDelete(f func(v1.Pod)) func(interface{}) {
 	return func(obj interface{}) {
 		pod := obj.(*v1.Pod)
-		if _, ok := pod.Labels[labels.RevisionLabel]; ok {
+		if _, ok := pod.Labels[labels.Revision]; ok {
 			f(*pod)
 		}
 	}

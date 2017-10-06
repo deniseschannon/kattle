@@ -6,21 +6,25 @@ import (
 )
 
 const (
-	RancherLabelPrefix = "io.rancher"
+	RancherPrefix = "io.rancher"
 
-	RevisionLabel       = "io.rancher.revision"
-	DeploymentUUIDLabel = "io.rancher.deployment.uuid"
+	Revision       = "io.rancher.revision"
+	DeploymentUUID = "io.rancher.deployment.uuid"
 
-	SchedulingLabelPrefix          = "io.rancher.scheduler"
-	GlobalLabel                    = "io.rancher.scheduler.global"
-	HostAffinityLabel              = "io.rancher.scheduler.affinity:host_label"
-	HostAntiAffinityLabel          = "io.rancher.scheduler.affinity:host_label_ne"
-	HostSoftAffinityLabel          = "io.rancher.scheduler.affinity:host_label_soft"
-	HostSoftAntiAffinityLabel      = "io.rancher.scheduler.affinity:host_label_soft_ne"
-	ContainerAffinityLabel         = "io.rancher.scheduler.affinity:container_label"
-	ContainerAntiAffinityLabel     = "io.rancher.scheduler.affinity:container_label_ne"
-	ContainerSoftAffinityLabel     = "io.rancher.scheduler.affinity:container_label_soft"
-	ContainerSoftAntiAffinityLabel = "io.rancher.scheduler.affinity:container_label_soft_ne"
+	SchedulingPrefix               = "io.rancher.scheduler"
+	Global                         = "io.rancher.scheduler.global"
+	HostAffinity                   = "io.rancher.scheduler.affinity:host_label"
+	HostAntiAffinity               = "io.rancher.scheduler.affinity:host_label_ne"
+	HostSoftAffinity               = "io.rancher.scheduler.affinity:host_label_soft"
+	HostSoftAntiAffinity           = "io.rancher.scheduler.affinity:host_label_soft_ne"
+	ContainerLabelAffinity         = "io.rancher.scheduler.affinity:container_label"
+	ContainerLabelAntiAffinity     = "io.rancher.scheduler.affinity:container_label_ne"
+	ContainerLabelSoftAffinity     = "io.rancher.scheduler.affinity:container_label_soft"
+	ContainerLabelSoftAntiAffinity = "io.rancher.scheduler.affinity:container_label_soft_ne"
+	ContainerNameAffinity          = "io.rancher.scheduler.affinity:container"
+	ContainerNameAntiAffinity      = "io.rancher.scheduler.affinity:container_ne"
+	ContainerNameSoftAffinity      = "io.rancher.scheduler.affinity:container_soft"
+	ContainerNameSoftAntiAffinity  = "io.rancher.scheduler.affinity:container_soft_ne"
 
 	ServiceLaunchConfig        = "io.rancher.service.launch.config"
 	ServicePrimaryLaunchConfig = "io.rancher.service.primary.launch.config"
@@ -28,12 +32,13 @@ const (
 	RancherDNSPriority         = "io.rancher.container.dns.priority"
 	RancherDNSSearch           = "io.rancher.container.dnssearch"
 
+	ContainerName        = "io.rancher.container.name"
 	PrimaryContainerName = "io.rancher.container.primary"
 
-	ServiceAccountLabel = "io.rancher.kubernetes.service_account"
+	ServiceAccount = "io.rancher.kubernetes.service_account"
 )
 
-func Parse(label interface{}) map[string]string {
+func ParseMap(label interface{}) map[string]string {
 	labelMap := map[string]string{}
 	kvPairs := strings.Split(fmt.Sprint(label), ",")
 	for _, kvPair := range kvPairs {
@@ -43,4 +48,8 @@ func Parse(label interface{}) map[string]string {
 		}
 	}
 	return labelMap
+}
+
+func ParseSlice(label interface{}) []string {
+	return strings.Split(fmt.Sprint(label), ",")
 }

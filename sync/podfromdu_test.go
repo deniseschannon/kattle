@@ -28,8 +28,8 @@ func TestGetLabels(t *testing.T) {
 			},
 		},
 	}), map[string]string{
-		labels.RevisionLabel:        "revision",
-		labels.DeploymentUUIDLabel:  "00000000-0000-0000-0000-000000000001",
+		labels.Revision:             "revision",
+		labels.DeploymentUUID:       "00000000-0000-0000-0000-000000000001",
 		labels.PrimaryContainerName: "test-00000000-0000-0000-0000-000000000002",
 		"label1":                    "value1",
 		utils.Hash("label1"):        utils.Hash("value1"),
@@ -239,8 +239,8 @@ func TestGetImagePullSecretReferences(t *testing.T) {
 func TestGetAffinity(t *testing.T) {
 	matchExpressions := getAffinity(client.Container{
 		Labels: map[string]string{
-			labels.HostAffinityLabel:     "key1=val1,key2=val2",
-			labels.HostAntiAffinityLabel: "key3=val3,key4=val4",
+			labels.HostAffinity:     "key1=val1,key2=val2",
+			labels.HostAntiAffinity: "key3=val3,key4=val4",
 		},
 	}, "default").NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms[0].MatchExpressions
 	assert.Len(t, matchExpressions, 4)
@@ -279,8 +279,8 @@ func TestGetAffinity(t *testing.T) {
 
 	matchExpressions = getAffinity(client.Container{
 		Labels: map[string]string{
-			labels.HostSoftAffinityLabel:     "key1=val1,key2=val2",
-			labels.HostSoftAntiAffinityLabel: "key3=val3,key4=val4",
+			labels.HostSoftAffinity:     "key1=val1,key2=val2",
+			labels.HostSoftAntiAffinity: "key3=val3,key4=val4",
 		},
 	}, "default").NodeAffinity.PreferredDuringSchedulingIgnoredDuringExecution[0].Preference.MatchExpressions
 	assert.Len(t, matchExpressions, 4)
@@ -319,8 +319,8 @@ func TestGetAffinity(t *testing.T) {
 
 	podAffinityTerms := getAffinity(client.Container{
 		Labels: map[string]string{
-			labels.ContainerAffinityLabel:     "key1=val1,key2=val2",
-			labels.ContainerAntiAffinityLabel: "key3=val3,key4=val4",
+			labels.ContainerLabelAffinity:     "key1=val1,key2=val2",
+			labels.ContainerLabelAntiAffinity: "key3=val3,key4=val4",
 		},
 	}, "default").PodAffinity.RequiredDuringSchedulingIgnoredDuringExecution
 	assert.Len(t, podAffinityTerms, 1)
@@ -363,8 +363,8 @@ func TestGetAffinity(t *testing.T) {
 
 	weightedPodAffinityTerms := getAffinity(client.Container{
 		Labels: map[string]string{
-			labels.ContainerSoftAffinityLabel:     "key1=val1,key2=val2",
-			labels.ContainerSoftAntiAffinityLabel: "key3=val3,key4=val4",
+			labels.ContainerLabelSoftAffinity:     "key1=val1,key2=val2",
+			labels.ContainerLabelSoftAntiAffinity: "key3=val3,key4=val4",
 		},
 	}, "default").PodAffinity.PreferredDuringSchedulingIgnoredDuringExecution
 	assert.Len(t, weightedPodAffinityTerms, 1)
@@ -399,6 +399,66 @@ func TestGetAffinity(t *testing.T) {
 			Operator: metav1.LabelSelectorOpNotIn,
 			Values: []string{
 				utils.Hash("val4"),
+			},
+		},
+	} {
+		assert.Contains(t, labelMatchExpressions, labelSelectorRequirement)
+	}
+
+	podAffinityTerms = getAffinity(client.Container{
+		Labels: map[string]string{
+			labels.ContainerNameAffinity:     "name1",
+			labels.ContainerNameAntiAffinity: "name2",
+		},
+	}, "default").PodAffinity.RequiredDuringSchedulingIgnoredDuringExecution
+	assert.Len(t, podAffinityTerms, 1)
+	assert.Equal(t, podAffinityTerms[0].Namespaces, []string{"default"})
+	assert.Equal(t, podAffinityTerms[0].TopologyKey, hostnameTopologyKey)
+	labelMatchExpressions = podAffinityTerms[0].LabelSelector.MatchExpressions
+	assert.Len(t, labelMatchExpressions, 2)
+	for _, labelSelectorRequirement := range []metav1.LabelSelectorRequirement{
+		{
+			Key:      utils.Hash(labels.ContainerName),
+			Operator: metav1.LabelSelectorOpIn,
+			Values: []string{
+				utils.Hash("name1"),
+			},
+		},
+		{
+			Key:      utils.Hash(labels.ContainerName),
+			Operator: metav1.LabelSelectorOpNotIn,
+			Values: []string{
+				utils.Hash("name2"),
+			},
+		},
+	} {
+		assert.Contains(t, labelMatchExpressions, labelSelectorRequirement)
+	}
+
+	weightedPodAffinityTerms = getAffinity(client.Container{
+		Labels: map[string]string{
+			labels.ContainerNameSoftAffinity:     "name1",
+			labels.ContainerNameSoftAntiAffinity: "name2",
+		},
+	}, "default").PodAffinity.PreferredDuringSchedulingIgnoredDuringExecution
+	assert.Len(t, weightedPodAffinityTerms, 1)
+	assert.Equal(t, weightedPodAffinityTerms[0].PodAffinityTerm.Namespaces, []string{"default"})
+	assert.Equal(t, weightedPodAffinityTerms[0].PodAffinityTerm.TopologyKey, hostnameTopologyKey)
+	labelMatchExpressions = weightedPodAffinityTerms[0].PodAffinityTerm.LabelSelector.MatchExpressions
+	assert.Len(t, labelMatchExpressions, 2)
+	for _, labelSelectorRequirement := range []metav1.LabelSelectorRequirement{
+		{
+			Key:      utils.Hash(labels.ContainerName),
+			Operator: metav1.LabelSelectorOpIn,
+			Values: []string{
+				utils.Hash("name1"),
+			},
+		},
+		{
+			Key:      utils.Hash(labels.ContainerName),
+			Operator: metav1.LabelSelectorOpNotIn,
+			Values: []string{
+				utils.Hash("name2"),
 			},
 		},
 	} {
